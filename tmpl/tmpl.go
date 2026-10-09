@@ -1,6 +1,7 @@
 // Package tmpl loads and executes site templates with inheritance, page
-// queries, assets, and output registration. Templates receive Context values;
-// only the current note's body and outline are exposed.
+// queries, assets, output registration, and definitions that are called as
+// functions. Templates receive Context values; only the current note's body
+// and outline are exposed.
 package tmpl
 
 import (
@@ -17,6 +18,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	ttemplate "text/template"
 	"text/template/parse"
 	"time"
@@ -72,7 +74,12 @@ func convert(err error, fallback string) *Error {
 	msg := err.Error()
 	if m := goError.FindStringSubmatch(msg); m != nil {
 		line, _ := strconv.Atoi(m[2])
-		return &Error{Pos: diag.Pos{Path: displayDir + "/" + m[1], Line: line}, Message: m[3]}
+		text := m[3]
+		// Go's account of the call adds nothing to the author's message.
+		if le, ok := errors.AsType[*logError](err); ok {
+			text = le.message
+		}
+		return &Error{Pos: diag.Pos{Path: displayDir + "/" + m[1], Line: line}, Message: text}
 	}
 	msg = strings.TrimPrefix(strings.TrimPrefix(msg, "template: "), "html/template: ")
 	return &Error{Pos: diag.Pos{Path: displayDir + "/" + fallback}, Message: msg}
@@ -85,17 +92,20 @@ type Sets struct {
 	sets  map[string]*Set
 	// build is nil when absent or invalid.
 	build *ttemplate.Template
+	// publish serves the build template and is nil except during RunBuild.
+	publish *publishNS
+	// depth counts the function calls in progress; see maxCallDepth.
+	depth atomic.Int32
 }
 
 // Set is a presentation template with its inherited definitions and partials.
 type Set struct {
 	name string
 	html bool
-	// Keep masters unexecuted: html/template cannot clone after execution.
-	// Each clone also needs its own output-specific log function.
-	htmlMaster *htemplate.Template
-	textMaster *ttemplate.Template
-	broken     bool
+	// One of these is set, by html, unless the set is broken.
+	htmlRoot *htemplate.Template
+	textRoot *ttemplate.Template
+	broken   bool
 }
 
 // Name returns the set's file name.
@@ -123,36 +133,25 @@ func (t *Set) ContentType() string {
 	}
 }
 
-// Execute writes rendered output to w and sends template log messages to rep.
-// It returns ErrReported for a broken set or an Error for a template failure.
-// Non-HTML output has leading whitespace removed.
-func (t *Set) Execute(w io.Writer, c *Context, rep *diag.Reporter) error {
+// Execute writes rendered output to w. It returns ErrReported for a broken
+// set or an Error for a template failure. Non-HTML output has leading
+// whitespace removed.
+func (t *Set) Execute(w io.Writer, c *Context) error {
 	if t.broken {
 		return ErrReported
 	}
-	l := &logNS{rep: rep, pos: diag.Pos{Path: displayDir + "/" + t.name}, output: c.URL}
-	bind := map[string]any{"log": func() *logNS { return l }}
-
 	if t.html {
-		clone, err := t.htmlMaster.Clone()
-		if err != nil {
-			return convert(err, t.name)
-		}
-		if err := clone.Funcs(bind).Execute(w, c); err != nil {
+		if err := t.htmlRoot.Execute(w, c); err != nil {
 			return convert(err, t.name)
 		}
 		return nil
 	}
-	clone, err := t.textMaster.Clone()
-	if err != nil {
-		return convert(err, t.name)
-	}
 	var buf bytes.Buffer
-	if err := clone.Funcs(bind).Execute(&buf, c); err != nil {
+	if err := t.textRoot.Execute(&buf, c); err != nil {
 		return convert(err, t.name)
 	}
 	// An XML declaration must precede whitespace left by template actions.
-	_, err = w.Write(bytes.TrimLeft(buf.Bytes(), " \t\r\n"))
+	_, err := w.Write(bytes.TrimLeft(buf.Bytes(), " \t\r\n"))
 	return err
 }
 
@@ -182,27 +181,21 @@ func (s *Sets) OutputContext(url string, data any) *Context {
 // RunBuild executes _build.tmpl with pub, discards its text, and reports
 // errors to rep. Completed publications remain after a later error.
 // It does nothing when the build template is absent or failed to parse.
+// Calls must not overlap.
 func (s *Sets) RunBuild(pub Publisher, rep *diag.Reporter) {
 	if s.build == nil {
 		return
 	}
-	clone, err := s.build.Clone()
-	if err == nil {
-		p := &publishNS{pub: pub, rep: rep}
-		l := &logNS{rep: rep, pos: diag.Pos{Path: buildPath}}
-		clone.Funcs(map[string]any{
-			"publish": func() *publishNS { return p },
-			"log":     func() *logNS { return l },
-		})
-		err = clone.Execute(io.Discard, &Context{Site: s.env.Site})
-	}
-	if err != nil {
+	s.publish = &publishNS{pub: pub, rep: rep}
+	defer func() { s.publish = nil }()
+	if err := s.build.Execute(io.Discard, &Context{Site: s.env.Site}); err != nil {
 		e := convert(err, buildName)
 		rep.Errorf(e.Pos, "%s", e.Message)
 	}
 }
 
-// Parsing needs placeholder log and publish functions; execution binds their real values.
+// funcs returns the functions of presentation templates. Functions keep no
+// state of one execution, so a parsed set is executed without copying it.
 func (s *Sets) funcs() map[string]any {
 	u := urlNS{base: s.env.Site.BaseURL}
 	now := timeNS{now: s.env.Now}
@@ -213,9 +206,16 @@ func (s *Sets) funcs() map[string]any {
 		"url":         func() urlNS { return u },
 		"asset":       func(name string) (string, error) { return s.env.Assets.URL(name) },
 		"assets":      func(names ...string) (string, error) { return s.env.Assets.URL(names...) },
-		"log":         func() *logNS { return nil },
+		"log":         func() logNS { return logNS{} },
 		"publish":     noPublish,
 	}
+}
+
+// buildFuncs returns the functions of the build template, which can publish.
+func (s *Sets) buildFuncs() map[string]any {
+	funcs := s.funcs()
+	funcs["publish"] = func() *publishNS { return s.publish }
+	return funcs
 }
 
 // extends matches the parent declaration, a comment that is the first
@@ -311,6 +311,12 @@ func Load(dir string, env *Env, rep *diag.Reporter) (*Sets, error) {
 	}
 	names := slices.Sorted(maps.Keys(files))
 	b := &builder{s: s, rep: rep, files: files, partials: partials, partialNames: partialNames}
+	b.partialFuncs, b.partialFuncsOK = map[string]*function{}, true
+	for _, name := range partialNames {
+		if !b.addFunctions(b.partialFuncs, name) {
+			b.partialFuncsOK = false
+		}
+	}
 	for _, name := range names {
 		switch {
 		case name == buildName:
@@ -330,6 +336,9 @@ type builder struct {
 	files        map[string]string
 	partials     map[string]string
 	partialNames []string
+	// partialFuncs holds the functions that the partials define.
+	partialFuncs   map[string]*function
+	partialFuncsOK bool
 
 	// Parse partials once per mode and clone them into each set.
 	// Parsing them first lets set definitions override them.
@@ -343,7 +352,10 @@ type builder struct {
 func (b *builder) htmlBase() (*htemplate.Template, bool) {
 	if b.htmlPartials == nil {
 		b.htmlPartials = htemplate.New("").Funcs(b.s.funcs())
-		b.htmlPartialsOK = true
+		// Let partials call each other. These are never called: each set
+		// binds the functions to its own clone.
+		b.htmlPartials.Funcs(b.s.callables(b.partialFuncs, b.htmlPartials, true))
+		b.htmlPartialsOK = b.partialFuncsOK
 		for _, p := range b.partialNames {
 			if _, err := b.htmlPartials.New(p).Parse(b.partials[p]); err != nil {
 				b.report(err, p)
@@ -351,7 +363,8 @@ func (b *builder) htmlBase() (*htemplate.Template, bool) {
 			}
 		}
 	}
-	// Clone fails only for a template that has been executed.
+	// Clone fails only for a template that has been executed, and the
+	// partials are executed only as part of a set.
 	return htemplate.Must(b.htmlPartials.Clone()), b.htmlPartialsOK
 }
 
@@ -359,7 +372,8 @@ func (b *builder) htmlBase() (*htemplate.Template, bool) {
 func (b *builder) textBase() (*ttemplate.Template, bool) {
 	if b.textPartials == nil {
 		b.textPartials = ttemplate.New("").Funcs(b.s.funcs())
-		b.textPartialsOK = true
+		b.textPartials.Funcs(b.s.callables(b.partialFuncs, b.textPartials, false))
+		b.textPartialsOK = b.partialFuncsOK
 		for _, p := range b.partialNames {
 			if _, err := b.textPartials.New(p).Parse(b.partials[p]); err != nil {
 				b.report(err, p)
@@ -414,6 +428,13 @@ func (b *builder) htmlSet(name string) *Set {
 	}
 	skeleton := files[0]
 	base, ok := b.htmlBase()
+	fns := maps.Clone(b.partialFuncs)
+	for _, f := range files {
+		if !b.addFunctions(fns, f) {
+			ok = false
+		}
+	}
+	base.Funcs(b.s.callables(fns, base, true))
 	root, err := base.New(skeleton).Parse(b.files[skeleton])
 	if err != nil {
 		b.report(err, skeleton)
@@ -432,7 +453,7 @@ func (b *builder) htmlSet(name string) *Set {
 		}
 	}
 	if ok {
-		set.htmlMaster, set.broken = root, false
+		set.htmlRoot, set.broken = root, false
 	}
 	return set
 }
@@ -444,23 +465,33 @@ func (b *builder) textSet(name string) *Set {
 		return set
 	}
 	base, ok := b.textBase()
+	fns := maps.Clone(b.partialFuncs)
+	if !b.addFunctions(fns, name) {
+		ok = false
+	}
+	base.Funcs(b.s.callables(fns, base, false))
 	root, err := base.New(name).Parse(b.files[name])
 	if err != nil {
 		b.report(err, name)
 		ok = false
 	}
 	if ok {
-		set.textMaster, set.broken = root, false
+		set.textRoot, set.broken = root, false
 	}
 	return set
 }
 
 // Build templates have no inheritance or presentation partials.
 func (b *builder) buildTemplate() {
-	t, err := ttemplate.New(buildName).Funcs(b.s.funcs()).Parse(b.files[buildName])
-	if err != nil {
+	fns := map[string]*function{}
+	ok := b.addFunctions(fns, buildName)
+	t := ttemplate.New(buildName).Funcs(b.s.buildFuncs())
+	t.Funcs(b.s.callables(fns, t, false))
+	if _, err := t.Parse(b.files[buildName]); err != nil {
 		b.report(err, buildName)
 		return
 	}
-	b.s.build = t
+	if ok {
+		b.s.build = t
+	}
 }

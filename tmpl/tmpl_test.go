@@ -108,7 +108,7 @@ func (s *site) render(set, notePath, content string) (string, error) {
 		s.t.Fatalf("no set %s", set)
 	}
 	var buf bytes.Buffer
-	err := t.Execute(&buf, s.sets.NoteContext(s.note(notePath), nil, []byte(content)), s.rep)
+	err := t.Execute(&buf, s.sets.NoteContext(s.note(notePath), nil, []byte(content)))
 	return buf.String(), err
 }
 
@@ -184,7 +184,7 @@ func TestContext(t *testing.T) {
 	}
 	outline := []*markdown.Heading{{Level: 1, ID: "top", Text: "Top & more", Children: []*markdown.Heading{{Level: 2, ID: "sub"}}}}
 	var buf bytes.Buffer
-	if err := set.Execute(&buf, s.sets.NoteContext(s.note("articles/First walk.md"), outline, []byte("<p>a &amp; b</p>")), s.rep); err != nil {
+	if err := set.Execute(&buf, s.sets.NoteContext(s.note("articles/First walk.md"), outline, []byte("<p>a &amp; b</p>"))); err != nil {
 		t.Fatal(err)
 	}
 	want := `https://example.com Gary /articles/First%20walk/ [<p>a &amp; b</p>] 1top:Top &amp; more>sub ` +
@@ -195,7 +195,7 @@ func TestContext(t *testing.T) {
 
 	out, _ := s.sets.Lookup("out.html")
 	buf.Reset()
-	if err := out.Execute(&buf, s.sets.OutputContext("/tags/photos/", map[string]any{"tag": "photos"}), s.rep); err != nil {
+	if err := out.Execute(&buf, s.sets.OutputContext("/tags/photos/", map[string]any{"tag": "photos"})); err != nil {
 		t.Fatal(err)
 	}
 	if want := `/tags/photos/ [] 0 no page photos |https://example.com`; buf.String() != want {
@@ -204,7 +204,7 @@ func TestContext(t *testing.T) {
 
 	// Skeletons need "with .Page": outputs without a note have no page.
 	bad, _ := s.sets.Lookup("bad.html")
-	err := bad.Execute(&buf, s.sets.OutputContext("/x/", nil), s.rep)
+	err := bad.Execute(&buf, s.sets.OutputContext("/x/", nil))
 	var te *Error
 	if !asError(err, &te) || te.Pos.Path != "templates/bad.html" || te.Pos.Line != 1 {
 		t.Errorf("nil page: err = %v", err)
@@ -349,30 +349,129 @@ func TestFunctions(t *testing.T) {
 func TestLog(t *testing.T) {
 	s := newSite(t, map[string]string{
 		"base.html": `[{{block "body" .}}{{end}}]`,
-		"warn.html": "{{/* extends base.html */}}\n{{define \"body\"}}a{{log.Warn \"no %s for %s\" \"date\" .Page.Path}}b{{end}}",
 		"fail.html": "{{/* extends base.html */}}\n\n{{define \"body\"}}a{{log.Error \"cannot render %s\" .Page.Path}}b{{end}}",
+		"warn.html": `{{log.Warn "gone"}}`,
 	})
-	got, err := s.render("warn.html", "index.md", "")
-	if err != nil || got != "[ab]" {
-		t.Errorf("warn: %q, %v", got, err)
+	// The message is the author's, without Go's account of the call.
+	_, err := s.render("fail.html", "index.md", "")
+	if want := "templates/fail.html:3: cannot render index.md"; err == nil || err.Error() != want {
+		t.Errorf("log.Error: err = %v, want %s", err, want)
 	}
-	// Each execution has its own log: the second names its own output.
-	s.render("warn.html", "about.md", "")
-	want := []string{
-		"templates/warn.html: warning: no date for index.md (rendering /)",
-		"templates/warn.html: warning: no date for about.md (rendering /about-me/)",
+	// A set is executed in place, so a failure leaves it usable.
+	if _, err := s.render("fail.html", "about.md", ""); err == nil || !strings.HasSuffix(err.Error(), "cannot render about.md") {
+		t.Errorf("second log.Error: err = %v", err)
 	}
-	if !reflect.DeepEqual(s.diags(), want) {
-		t.Errorf("diagnostics = %q\nwant %q", s.diags(), want)
+	if _, err := s.render("warn.html", "index.md", ""); err == nil || !strings.Contains(err.Error(), "Warn") {
+		t.Errorf("log.Warn: err = %v", err)
+	}
+}
+
+func TestDefinitionFunctions(t *testing.T) {
+	s := newSite(t, map[string]string{
+		"base.html": `{{block "body" .}}{{end}}`,
+		"nav.html": "{{/* extends base.html */}}{{define \"body\"}}" +
+			`{{navlink .URL "/" "Home"}}|{{navlink .URL "/about-me/" "About <me>" "Who"}}|{{list "a" "b"}}|{{list "a"}}|{{bare}}|{{bare .URL}}|{{bare .URL | len}}{{end}}`,
+		// A child's definition prevails over the partial's for calls too.
+		"child.html":             `{{/* extends nav.html */}}{{define "bare"}}child{{end}}`,
+		"_partials/navlink.html": `{{define "navlink current href text title?"}}{{if eq .current .href}}{{.text}}{{else}}<a href="{{.href}}"{{with .title}} title="{{.}}"{{end}}>{{.text}}</a>{{end}}{{end}}`,
+		// One partial calls another, which sorts after it.
+		"_partials/list.html": `{{define "list first rest..."}}{{.first}}{{range .rest}},{{.}}{{end}}({{len .rest}}){{wrap "x"}}{{end}}`,
+		"_partials/wrap.html": `{{define "wrap"}}[{{.}}]{{end}}{{define "bare"}}({{.}}){{end}}`,
+		"attr.html":           `<a title="{{wrap "a&b"}}">{{template "wrap" "c&d"}}</a>`,
+		"feed.xml":            `{{wrap "<a>"}}{{own 1 2}}{{define "own a b"}}{{.a}}+{{.b}}{{end}}`,
+		"loop.html":           "a\n{{define \"loop\"}}{{loop}}{{end}}{{loop}}",
+		"deep.html":           "{{outer .}}{{define \"outer\"}}\n{{inner}}{{end}}{{define \"inner\"}}\n\n{{log.Error \"inner failed\"}}{{end}}",
+		"few.html":            `{{navlink .URL "/"}}`,
+		"many.html":           `{{navlink 1 2 3 4 5}}`,
+		"two.html":            `{{wrap 1 2}}`,
+	})
+	s.noDiags()
+
+	tests := []struct{ set, note, want string }{
+		{"nav.html", "index.md", `Home|<a href="/about-me/" title="Who">About &lt;me&gt;</a>|a,b(1)[x]|a(0)[x]|()|(/)|3`},
+		{"nav.html", "about.md", `<a href="/">Home</a>|About &lt;me&gt;|a,b(1)[x]|a(0)[x]|()|(/about-me/)|12`},
+		{"child.html", "index.md", `Home|<a href="/about-me/" title="Who">About &lt;me&gt;</a>|a,b(1)[x]|a(0)[x]|child|child|5`},
+		// A call yields HTML: correct in element content, but not escaped
+		// again for an attribute as the template action is.
+		{"attr.html", "index.md", `<a title="[a&amp;b]">[c&amp;d]</a>`},
+	}
+	for _, tt := range tests {
+		got, err := s.render(tt.set, tt.note, "")
+		if err != nil || got != tt.want {
+			t.Errorf("%s for %s:\n got %s (%v)\nwant %s", tt.set, tt.note, got, err, tt.want)
+		}
 	}
 
-	_, err = s.render("fail.html", "index.md", "")
-	var te *Error
-	if !asError(err, &te) || te.Pos != (diag.Pos{Path: "templates/fail.html", Line: 3}) || !strings.HasSuffix(te.Message, "cannot render index.md") {
-		t.Errorf("log.Error: err = %v", err)
+	// A text set calls partials and its own definitions without escaping.
+	set, _ := s.sets.Lookup("feed.xml")
+	var buf bytes.Buffer
+	if err := set.Execute(&buf, s.sets.OutputContext("/feed.xml", nil)); err != nil || buf.String() != "[<a>]1+2" {
+		t.Errorf("feed.xml = %q, %v", buf.String(), err)
 	}
-	if got := err.Error(); !strings.HasPrefix(got, "templates/fail.html:3: ") {
-		t.Errorf("Error() = %q", got)
+
+	failures := []struct{ set, want string }{
+		{"loop.html", "templates/loop.html:2: executing \"loop\" at <loop>: error calling loop: more than 1000 nested function calls"},
+		// The innermost failure is reported, at its own line.
+		{"deep.html", "templates/deep.html:4: inner failed"},
+		{"few.html", `templates/few.html:1: executing "few.html" at <navlink .URL "/">: error calling navlink: wrong number of arguments (2) for "navlink current href text title?"`},
+		{"many.html", `templates/many.html:1: executing "many.html" at <navlink 1 2 3 4 5>: error calling navlink: wrong number of arguments (5) for "navlink current href text title?"`},
+		{"two.html", `templates/two.html:1: executing "two.html" at <wrap 1 2>: error calling wrap: wrong number of arguments (2) for "wrap", which takes at most one`},
+	}
+	for _, tt := range failures {
+		_, err := s.render(tt.set, "index.md", "")
+		if err == nil || err.Error() != tt.want {
+			t.Errorf("%s: err = %v\nwant %s", tt.set, err, tt.want)
+		}
+	}
+	// The depth count is restored after a failure.
+	if got, err := s.render("nav.html", "index.md", ""); err != nil || !strings.HasPrefix(got, "Home|") {
+		t.Errorf("after failures: %s, %v", got, err)
+	}
+}
+
+func TestDefinitionFunctionProblems(t *testing.T) {
+	s := newSite(t, map[string]string{
+		"base.html":            `{{block "body" .}}{{end}}`,
+		"ok.html":              "{{/* extends base.html */}}\n{{define \"partials/x\"}}{{end}}{{define \"my-box a b\"}}{{end}}{{define \"end\"}}{{end}}{{define \"true\"}}{{end}}",
+		"differs.html":         "{{/* extends base.html */}}\n\n{{define \"card title\"}}x{{end}}",
+		"builtin.html":         "{{define \"index\"}}x{{end}}\n{{define \"pages\"}}x{{end}}\n{{define \"html x\"}}x{{end}}",
+		"params.html":          "{{define \"a b-c\"}}{{end}}\n{{define \"a2 x x\"}}{{end}}\n{{define \"a3 x? y\"}}{{end}}\n{{define \"a4 x... y\"}}{{end}}\n{{define \"a5 x... y?\"}}{{end}}\n{{define \"a6 1x\"}}{{end}}",
+		"feed.xml":             "{{define \"log\"}}x{{end}}",
+		"partialcall.html":     `{{/* extends base.html */}}{{define "body"}}{{body .}}{{end}}`,
+		"_build.tmpl":          "\n{{define \"publish url\"}}{{end}}",
+		"_partials/card.html":  `{{define "card title body"}}{{.title}}{{end}}`,
+		"_partials/early.html": `{{define "early"}}{{body .}}{{end}}`,
+	})
+	want := []string{
+		`templates/_build.tmpl:2: definition "publish url": a definition cannot have the name of a built-in function`,
+		// A partial is parsed once, before the files of any set.
+		`templates/_partials/early.html:1: function "body" not defined`,
+		`templates/builtin.html:1: definition "index": a definition cannot have the name of a built-in function`,
+		`templates/builtin.html:2: definition "pages": a definition cannot have the name of a built-in function`,
+		`templates/builtin.html:3: definition "html x": a definition cannot have the name of a built-in function`,
+		`templates/differs.html:3: definition "card title": the name and parameters differ from "card title body" in templates/_partials/card.html`,
+		`templates/feed.xml:1: definition "log": a definition cannot have the name of a built-in function`,
+		`templates/params.html:1: definition "a b-c": invalid parameter "b-c"`,
+		`templates/params.html:2: definition "a2 x x": duplicate parameter "x"`,
+		`templates/params.html:3: definition "a3 x? y": required parameter "y" follows an optional parameter`,
+		`templates/params.html:4: definition "a4 x... y": parameter "y" follows the last parameter, "x..."`,
+		`templates/params.html:5: definition "a5 x... y?": parameter "y?" follows the last parameter, "x..."`,
+		`templates/params.html:6: definition "a6 1x": invalid parameter "1x"`,
+	}
+	if got := s.diags(); !reflect.DeepEqual(got, want) {
+		t.Errorf("diagnostics:\n  %s\nwant:\n  %s", strings.Join(got, "\n  "), strings.Join(want, "\n  "))
+	}
+	for _, name := range []string{"differs.html", "builtin.html", "params.html", "feed.xml"} {
+		set, _ := s.sets.Lookup(name)
+		if err := set.Execute(&bytes.Buffer{}, s.sets.OutputContext("/x/", nil)); err != ErrReported {
+			t.Errorf("%s: err = %v, want ErrReported", name, err)
+		}
+	}
+	// A rejected build template does not run.
+	pub := &fakePublisher{}
+	s.sets.RunBuild(pub, s.rep)
+	if len(pub.calls) != 0 {
+		t.Errorf("calls = %q", pub.calls)
 	}
 }
 
@@ -412,7 +511,7 @@ func TestTextSets(t *testing.T) {
 	// Text sets share partials, skip escaping, and trim leading whitespace.
 	set, _ := s.sets.Lookup("feed.xml")
 	var buf bytes.Buffer
-	if err := set.Execute(&buf, s.sets.OutputContext("/feed.xml", "<raw>"), s.rep); err != nil {
+	if err := set.Execute(&buf, s.sets.OutputContext("/feed.xml", "<raw>")); err != nil {
 		t.Fatal(err)
 	}
 	if want := "<?xml version=\"1.0\"?><n>5</n><t>a&lt;b</t><!-- /feed.xml --><raw>\n"; buf.String() != want {
@@ -421,7 +520,7 @@ func TestTextSets(t *testing.T) {
 	// An HTML set with the same base name is separate and escapes content.
 	set, _ = s.sets.Lookup("feed.html")
 	buf.Reset()
-	set.Execute(&buf, s.sets.OutputContext("/feed/", "<raw>"), s.rep)
+	set.Execute(&buf, s.sets.OutputContext("/feed/", "<raw>"))
 	if buf.String() != "&lt;raw&gt;" {
 		t.Errorf("feed.html = %q", buf.String())
 	}
@@ -474,7 +573,7 @@ func TestLoadProblems(t *testing.T) {
 			t.Errorf("broken set %s is not found", name)
 			continue
 		}
-		if err := set.Execute(&bytes.Buffer{}, s.sets.OutputContext("/x/", nil), s.rep); err != ErrReported {
+		if err := set.Execute(&bytes.Buffer{}, s.sets.OutputContext("/x/", nil)); err != ErrReported {
 			t.Errorf("%s: err = %v, want ErrReported", name, err)
 		}
 	}
@@ -624,7 +723,6 @@ func TestRunBuildFailures(t *testing.T) {
 {{publish.Render "/bad-template/" 7 nil}}
 {{publish.Render 7 "tag.html" nil}}
 {{publish.Render}}
-{{log.Warn "still %s" "running"}}
 {{publish.Render "/ok/2/" "tag.html" nil}}
 `)
 	wantCalls := []string{
@@ -652,7 +750,6 @@ func TestRunBuildFailures(t *testing.T) {
 		`templates/_build.tmpl: publish.Render "/bad-template/": the template file name is a int, not a string`,
 		`templates/_build.tmpl: publish.Render "": the URL is a int, not a string`,
 		`templates/_build.tmpl: publish.Render "": want a URL, a template file name, and data`,
-		`templates/_build.tmpl: warning: still running`,
 	}
 	if !reflect.DeepEqual(diags, wantDiags) {
 		t.Errorf("diagnostics:\n  %s\nwant:\n  %s", strings.Join(diags, "\n  "), strings.Join(wantDiags, "\n  "))
@@ -669,7 +766,7 @@ func TestRunBuildFailures(t *testing.T) {
 	}
 
 	_, diags = runBuild(t, "\n{{log.Error \"stop: %d\" 7}}")
-	if len(diags) != 1 || !strings.HasPrefix(diags[0], "templates/_build.tmpl:2: ") || !strings.HasSuffix(diags[0], "stop: 7") {
+	if want := []string{"templates/_build.tmpl:2: stop: 7"}; !reflect.DeepEqual(diags, want) {
 		t.Errorf("log.Error diagnostics = %q", diags)
 	}
 

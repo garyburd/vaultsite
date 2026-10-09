@@ -33,27 +33,17 @@ type timeNS struct{ now time.Time }
 // Now returns the time the build started, the same for every output.
 func (t timeNS) Now() time.Time { return t.now }
 
-// Bind logging to each execution to attribute messages to its output.
-type logNS struct {
-	rep *diag.Reporter
-	pos diag.Pos
-	// output is the URL being rendered, or "" for the build template.
-	output string
-}
+type logNS struct{}
 
-// Warn reports a warning and returns nothing to print.
-func (l *logNS) Warn(format string, args ...any) string {
-	msg := fmt.Sprintf(format, args...)
-	if l.output != "" {
-		msg += " (rendering " + l.output + ")"
-	}
-	l.rep.Warnf(l.pos, "%s", msg)
-	return ""
-}
+// logError is a log.Error message, which convert reports as written.
+type logError struct{ message string }
+
+func (e *logError) Error() string { return e.message }
 
 // Error stops template execution and reports the message at the call site.
-func (l *logNS) Error(format string, args ...any) (string, error) {
-	return "", fmt.Errorf(format, args...)
+// Callers of Execute name the output being rendered.
+func (logNS) Error(format string, args ...any) (string, error) {
+	return "", &logError{fmt.Sprintf(format, args...)}
 }
 
 // Publisher registers additional outputs during RunBuild. Methods must finish

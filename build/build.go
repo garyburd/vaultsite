@@ -310,7 +310,7 @@ func (b *builder) renderNote(n *vault.Note, r *resource.Resource) {
 	b.anchors[n.Path] = doc.Anchors
 
 	var buf bytes.Buffer
-	if err := set.Execute(&buf, b.sets.NoteContext(n, doc.Outline, doc.HTML), b.rep); err != nil {
+	if err := set.Execute(&buf, b.sets.NoteContext(n, doc.Outline, doc.HTML)); err != nil {
 		b.templateError(err, "rendering "+name)
 		return
 	}

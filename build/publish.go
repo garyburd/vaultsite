@@ -49,7 +49,7 @@ func (b *builder) Render(u, template string, data any) error {
 		return fmt.Errorf("unknown template %q", template)
 	}
 	var buf bytes.Buffer
-	if err := set.Execute(&buf, b.sets.OutputContext(u, data), b.rep); err != nil {
+	if err := set.Execute(&buf, b.sets.OutputContext(u, data)); err != nil {
 		if errors.Is(err, tmpl.ErrReported) {
 			return fmt.Errorf("template %q failed to parse", template)
 		}

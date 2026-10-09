@@ -674,6 +674,39 @@ The most specific nonempty definition wins. An empty or whitespace-only
 `{{define "footer"}}{{end}}` keeps the inherited definition; use
 `{{define "footer"}}{{""}}{{end}}` to suppress it.
 
+A definition named by a word is also a function, so `{{nav .}}` does the
+same as `{{template "nav" .}}`. Words after the name are parameters. For
+example, `templates/_partials/navlink.html` links to a page, except on that
+page:
+
+```gotemplate
+{{define "navlink current href text title?"}}{{if eq .current .href}}{{.text}}{{else}}<a href="{{.href}}"{{with .title}} title="{{.}}"{{end}}>{{.text}}</a>{{end}}{{end}}
+```
+
+Call it with one argument for each parameter:
+
+```gotemplate
+<li>{{navlink .URL "/" "Home"}}</li>
+<li>{{navlink .URL "/articles/" "Articles" "All articles"}}</li>
+```
+
+Inside the definition, `.` is a map from each parameter to its argument. A
+parameter ending in `?` is optional and nil when omitted. A last parameter
+ending in `...` takes the remaining arguments as a list. Required parameters
+come first. Without parameters, the function takes one optional argument,
+which becomes `.`.
+
+A function's name is a letter or underscore followed by letters, digits, and
+underscores. Other definitions, such as `{{define "nav-bar"}}`, are not
+functions. A definition cannot have the name of a built-in function such as
+`index` or `pages`. Overriding definitions must repeat the name and
+parameters exactly. A partial can call functions defined in partials, but not
+those of the files that use it. `_build.tmpl` can call its own definitions.
+
+In an HTML template a call produces HTML, which is correct between tags.
+Inside an attribute, script, or style, use `{{template}}` so the output is
+escaped for that place.
+
 Each selected file has its own template set. [`publish.Render`](#generating-pages)
 can use non-HTML files as text templates, without inheritance or automatic
 escaping. Use `html`, `js`, or `urlquery` where needed.
@@ -914,7 +947,6 @@ canonical URL gains `base_url`.
 | `time.Now` | The time the build started, as a Go time; the same for every output. |
 | `url.Abs <URL>` | Prefix a single-slash site URL with `.Site.BaseURL`; leave other forms unchanged. |
 | `url.Join <parts...>` | Join decoded parts, split on `/`, omit empty segments, and percent-encode. Preserve leading/trailing slashes from the first/last part. |
-| `log.Warn <format> <args...>` | Return empty text and emit a warning naming the template and output. |
 | `log.Error <format> <args...>` | Stop template execution and fail the build with that message. |
 
 Format `time.Now` like a note's date: `{{time.Now.Year}}` or
