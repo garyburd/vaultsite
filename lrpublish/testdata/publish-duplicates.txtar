@@ -1,0 +1,78 @@
+Two notes claim the collection, so the publish stops before writing
+anything: the new photo fails, and waits to be published.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Recent"
+			]
+		}
+	],
+	"collection": 10,
+	"photos": [
+		{
+			"uuid": "C3000000-0000-0000-0000-000000000003",
+			"rendition": "$RENDER/3.jpg"
+		}
+	]
+}
+-- render/3.jpg --
+full 3
+-- vault/Galleries/Recent copy.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1
+-- vault/Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg --
+thumb 1
+-- want/response.json --
+{
+	"protocol": 5,
+	"error": "Several notes claim the collection \"Recent\":\n\nGalleries/Recent copy.md\nGalleries/Recent.md\n\nNeither was changed. Remove the lightroom-collection line from all but one, or delete the copies."
+}
+-- want/log --
+-- want/vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1
+-- want/vault/Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg --
+thumb 1
+-- want/vault/Galleries/Recent copy.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset

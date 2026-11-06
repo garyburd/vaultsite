@@ -1,0 +1,62 @@
+A collection in a set gets a note in the set's folder, its name made
+safe as a file name. An existing note has the same name, so the new one
+gets a number.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Recent"
+			]
+		},
+		{
+			"id": 20,
+			"path": [
+				"Trips",
+				"New Zealand: South"
+			]
+		}
+	],
+	"collection": 20,
+	"photos": [
+		{
+			"uuid": "A1000000-0000-0000-0000-000000000001",
+			"rendition": "$RENDER/1.jpg"
+		}
+	]
+}
+-- render/1.jpg --
+full 1 new
+-- vault/Galleries/Trips/New Zealand- South.md --
+Mine
+-- want/response.json --
+{
+	"protocol": 5,
+	"photos": [
+		{
+			"uuid": "A1000000-0000-0000-0000-000000000001",
+			"remoteId": "a1000000000000000000000000000001.jpg"
+		}
+	]
+}
+-- want/log --
+New Zealand: South: stored 1 of 1 photos
+created Galleries/Trips/New Zealand- South 2.md with 1 photo
+-- want/vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1 new
+-- want/vault/Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg --
+thumb of full 1 new
+-- want/vault/Galleries/Trips/New Zealand- South 2.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 20
+lightroom-path: "Trips/New Zealand: South"
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+-- want/vault/Galleries/Trips/New Zealand- South.md --
+Mine

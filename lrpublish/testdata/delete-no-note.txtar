@@ -1,0 +1,18 @@
+Without a note, there's nothing to delete.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "delete",
+	"collection": 10,
+	"remoteIds": [
+		"a1000000000000000000000000000001.jpg"
+	]
+}
+-- want/response.json --
+{
+	"protocol": 5,
+	"confirmed": [
+		"a1000000000000000000000000000001.jpg"
+	]
+}
+-- want/log --

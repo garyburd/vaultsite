@@ -1,0 +1,61 @@
+Several notes claim the collection, so nothing is deleted or confirmed.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "delete",
+	"collection": 10,
+	"remoteIds": [
+		"a1000000000000000000000000000001.jpg"
+	]
+}
+-- vault/Galleries/Recent 2.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- want/response.json --
+{
+	"protocol": 5,
+	"warnings": [
+		{
+			"title": "Vault Photos: figures of removed photos were not deleted",
+			"message": "Several notes claim the collection:\n\nGalleries/Recent 2.md\nGalleries/Recent.md\n\nRemove the lightroom-collection line from all but one, then remove the photos again."
+		}
+	]
+}
+-- want/log --
+-- want/vault/Galleries/Recent 2.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset

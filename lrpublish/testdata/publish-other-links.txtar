@@ -1,0 +1,89 @@
+Links that aren't the service's photo links don't show a photo: another
+service's, an ordinary URL, and a plain image.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Recent"
+			]
+		}
+	],
+	"collection": 10,
+	"photos": [
+		{
+			"uuid": "A1000000-0000-0000-0000-000000000001",
+			"rendition": "$RENDER/1.jpg"
+		},
+		{
+			"uuid": "B2000000-0000-0000-0000-000000000002",
+			"rendition": "$RENDER/2.jpg"
+		}
+	]
+}
+-- render/1.jpg --
+full 1 new
+-- render/2.jpg --
+full 2 new
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:dog/a1/a1000000000000000000000000000001)
+
+[![](https://example.com/x.jpg)](https://example.com/a1000000000000000000000000000001/)
+
+[![](Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg)](https://example.org/_photos/cat/b2000000000000000000000000000002/)
+
+![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)
+-- want/response.json --
+{
+	"protocol": 5,
+	"photos": [
+		{
+			"uuid": "A1000000-0000-0000-0000-000000000001",
+			"remoteId": "a1000000000000000000000000000001.jpg"
+		},
+		{
+			"uuid": "B2000000-0000-0000-0000-000000000002",
+			"remoteId": "b2000000000000000000000000000002.jpg"
+		}
+	]
+}
+-- want/log --
+Recent: stored 2 of 2 photos
+Galleries/Recent.md: added 2 figures
+-- want/vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1 new
+-- want/vault/.vaultsite/fullsize/cat/b2/b2000000000000000000000000000002.jpg --
+full 2 new
+-- want/vault/Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg --
+thumb of full 1 new
+-- want/vault/Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg --
+thumb of full 2 new
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:dog/a1/a1000000000000000000000000000001)
+
+[![](https://example.com/x.jpg)](https://example.com/a1000000000000000000000000000001/)
+
+[![](Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg)](https://example.org/_photos/cat/b2000000000000000000000000000002/)
+
+![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+
+[![](Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg)](vaultsite-fullsize:cat/b2/b2000000000000000000000000000002)

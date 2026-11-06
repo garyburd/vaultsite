@@ -1,0 +1,17 @@
+site.yaml has no entry for the service.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "check"
+}
+-- vault/.vaultsite/site.yaml --
+base_url: https://example.com
+lr_publish:
+  dog:
+    notes: G
+-- want/response.json --
+{
+	"protocol": 5,
+	"error": "$VAULT/.vaultsite/site.yaml has no lr_publish entry named \"cat\"."
+}
+-- want/log --

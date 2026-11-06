@@ -1,0 +1,73 @@
+No note claims the collection, so the publish creates one, with the photo
+just published only. The collection's other photos come back when it is
+republished whole.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Recent"
+			]
+		}
+	],
+	"collection": 10,
+	"photos": [
+		{
+			"uuid": "D4000000-0000-0000-0000-000000000004",
+			"rendition": "$RENDER/4.jpg",
+			"caption": "Fourth"
+		}
+	]
+}
+-- render/4.jpg --
+full 4 new
+-- vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1
+-- vault/.vaultsite/fullsize/cat/b2/b2000000000000000000000000000002.jpg --
+full 2
+-- vault/Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg --
+thumb 1
+-- vault/Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg --
+thumb 2
+-- vault/Galleries/Attachments/thumbs/c3/c3000000000000000000000000000003.jpg --
+thumb 3
+-- want/response.json --
+{
+	"protocol": 5,
+	"photos": [
+		{
+			"uuid": "D4000000-0000-0000-0000-000000000004",
+			"remoteId": "d4000000000000000000000000000004.jpg"
+		}
+	]
+}
+-- want/log --
+Recent: stored 1 of 1 photos
+created Galleries/Recent.md with 1 photo
+-- want/vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1
+-- want/vault/.vaultsite/fullsize/cat/b2/b2000000000000000000000000000002.jpg --
+full 2
+-- want/vault/.vaultsite/fullsize/cat/d4/d4000000000000000000000000000004.jpg --
+full 4 new
+-- want/vault/Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg --
+thumb 1
+-- want/vault/Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg --
+thumb 2
+-- want/vault/Galleries/Attachments/thumbs/c3/c3000000000000000000000000000003.jpg --
+thumb 3
+-- want/vault/Galleries/Attachments/thumbs/d4/d4000000000000000000000000000004.jpg --
+thumb of full 4 new
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/d4/d4000000000000000000000000000004.jpg)](vaultsite-fullsize:cat/d4/d4000000000000000000000000000004)
+Fourth

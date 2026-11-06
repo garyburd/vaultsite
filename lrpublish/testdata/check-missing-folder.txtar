@@ -1,0 +1,18 @@
+The settings dialog's check reports a missing notes folder, since the
+service never creates it.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "check"
+}
+-- vault/.vaultsite/site.yaml --
+base_url: https://example.com
+lr_publish:
+  cat:
+    notes: Moved
+-- want/response.json --
+{
+	"protocol": 5,
+	"error": "The notes folder Moved is missing.\n\nCreate it, or if you moved it, change lr_publish.cat.notes in $VAULT/.vaultsite/site.yaml to its new place."
+}
+-- want/log --

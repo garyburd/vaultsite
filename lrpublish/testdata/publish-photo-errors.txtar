@@ -1,0 +1,100 @@
+Photos that can't be stored fail one at a time: a bad UUID, a rendition
+without an extension, a rendition that's gone, and a figure whose
+thumbnail's folder is gone. Photo 5 is stored.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Recent"
+			]
+		}
+	],
+	"collection": 10,
+	"photos": [
+		{
+			"uuid": "nonsense",
+			"rendition": "$RENDER/1.jpg"
+		},
+		{
+			"uuid": "B2000000-0000-0000-0000-000000000002",
+			"rendition": "$RENDER/2"
+		},
+		{
+			"uuid": "C3000000-0000-0000-0000-000000000003",
+			"rendition": "$RENDER/3.jpg"
+		},
+		{
+			"uuid": "D4000000-0000-0000-0000-000000000004",
+			"rendition": "$RENDER/4.jpg"
+		},
+		{
+			"uuid": "E5000000-0000-0000-0000-000000000005",
+			"rendition": "$RENDER/5.jpg"
+		}
+	]
+}
+-- render/1.jpg --
+full 1 new
+-- render/2 --
+full 2
+-- render/4.jpg --
+full 4 new
+-- render/5.jpg --
+full 5 new
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Gone/d4.jpg)](vaultsite-fullsize:cat/d4/d4000000000000000000000000000004)
+-- want/response.json --
+{
+	"protocol": 5,
+	"photos": [
+		{
+			"uuid": "nonsense",
+			"error": "bad photo UUID nonsense"
+		},
+		{
+			"uuid": "B2000000-0000-0000-0000-000000000002",
+			"error": "rendered file has no extension: $RENDER/2"
+		},
+		{
+			"uuid": "C3000000-0000-0000-0000-000000000003",
+			"error": "open $RENDER/3.jpg: no such file or directory"
+		},
+		{
+			"uuid": "D4000000-0000-0000-0000-000000000004",
+			"error": "the folder of the thumbnail Galleries/Gone/d4.jpg is missing. If you moved it, the figure should show the new place; if you deleted it, delete the figure."
+		},
+		{
+			"uuid": "E5000000-0000-0000-0000-000000000005",
+			"remoteId": "e5000000000000000000000000000005.jpg"
+		}
+	]
+}
+-- want/log --
+Recent: stored 1 of 5 photos
+Galleries/Recent.md: added 1 figure
+-- want/vault/.vaultsite/fullsize/cat/e5/e5000000000000000000000000000005.jpg --
+full 5 new
+-- want/vault/Galleries/Attachments/thumbs/e5/e5000000000000000000000000000005.jpg --
+thumb of full 5 new
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Gone/d4.jpg)](vaultsite-fullsize:cat/d4/d4000000000000000000000000000004)
+
+[![](Galleries/Attachments/thumbs/e5/e5000000000000000000000000000005.jpg)](vaultsite-fullsize:cat/e5/e5000000000000000000000000000005)

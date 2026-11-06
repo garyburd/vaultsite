@@ -1,0 +1,58 @@
+A collection whose sets would put its note in the thumbnail folder fails,
+and a note already there is not found: the folder isn't searched.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Attachments",
+				"thumbs",
+				"Recent"
+			]
+		}
+	],
+	"collection": 10,
+	"photos": [
+		{
+			"uuid": "C3000000-0000-0000-0000-000000000003",
+			"rendition": "$RENDER/3.jpg"
+		}
+	]
+}
+-- render/3.jpg --
+full 3
+-- vault/Galleries/Attachments/thumbs/Recent.md --
+---
+lightroom-collection: 10
+lightroom-path: Attachments/thumbs/Recent
+---
+-- want/response.json --
+{
+	"protocol": 5,
+	"warnings": [
+		{
+			"title": "Vault Photos: the note was not changed",
+			"message": "The note of \"Recent\" would be Galleries/Attachments/thumbs/Recent.md, inside the thumbnail folder. Rename its collection set."
+		}
+	],
+	"photos": [
+		{
+			"uuid": "C3000000-0000-0000-0000-000000000003",
+			"remoteId": "c3000000000000000000000000000003.jpg"
+		}
+	]
+}
+-- want/log --
+Recent: stored 1 of 1 photos
+-- want/vault/.vaultsite/fullsize/cat/c3/c3000000000000000000000000000003.jpg --
+full 3
+-- want/vault/Galleries/Attachments/thumbs/Recent.md --
+---
+lightroom-collection: 10
+lightroom-path: Attachments/thumbs/Recent
+---
+-- want/vault/Galleries/Attachments/thumbs/c3/c3000000000000000000000000000003.jpg --
+thumb of full 3

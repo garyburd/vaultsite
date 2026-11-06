@@ -1,0 +1,17 @@
+site.yaml has errors, which are reported with their lines.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "check"
+}
+-- vault/.vaultsite/site.yaml --
+base_url: https://example.com
+lr_publish:
+  cat:
+    notes: My Notes
+-- want/response.json --
+{
+	"protocol": 5,
+	"error": "The site configuration has errors:\n\nsite.yaml:4: lr_publish.cat.notes \"My Notes\" may contain only letters, digits, \"-\", \"_\", \".\" and \"/\""
+}
+-- want/log --

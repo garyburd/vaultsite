@@ -1,0 +1,231 @@
+/* vaultsite renders two kinds of figure, each with --aspect-ratio on the
+   figure that holds an image:
+
+   - An image-led paragraph becomes <figure> holding <a><img></a> and an
+     optional <figcaption>.
+   - A list of images becomes <figure class="gallery"> holding one such
+     figure per image, the tiles, and an optional <figcaption> of its own.
+     Tiles are laid out in equal-height, uncropped rows. */
+
+figure {
+  margin: 2.5em 0;
+}
+figure > a {
+  display: block;
+  cursor: zoom-in;
+}
+figure > a > img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Limit portrait images' height to the column width. */
+figure:not(.gallery > figure) > a {
+  width: calc(100% * min(1, var(--aspect-ratio, 1)));
+}
+
+figure.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  /* Tiles hold images, which stretching would distort. */
+  align-items: flex-start;
+  gap: 4px;
+  /* --gallery-column is the content width in rem, expressed as a number
+     (e.g. 53 for 53rem; default 55). Rows scale below that width and are
+     capped at 20rem. $gallery.js refines the final row. */
+  --gallery-row: min(20rem, calc(100% * 20 / var(--gallery-column, 55)));
+}
+figure.gallery > figure {
+  position: relative;
+  margin: 0;
+  /* Scaling growth by 1000 keeps every row's sum above 1. Otherwise flexbox
+     assigns only that fraction of free space; uniform scaling preserves ratios. */
+  flex-grow: calc(var(--aspect-ratio, 1) * 1000);
+  flex-basis: calc(var(--aspect-ratio, 1) * var(--gallery-row, 20rem));
+  min-width: 0;
+}
+
+/* Overlay tile captions so their height cannot disrupt the rows. */
+figure.gallery > figure > figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.75rem 0.6rem 0.45rem;
+  color: #fff;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
+  /* Let clicks through to the link beneath. */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+/* Touch screens have no hover; there the caption is in the lightbox only. */
+@media (hover: hover) {
+  figure.gallery > figure:hover > figcaption,
+  figure.gallery > figure:focus-within > figcaption {
+    opacity: 1;
+  }
+}
+
+/* The gallery's own caption follows the phantom, which must share the final
+   tile row. */
+figure.gallery > figcaption {
+  flex-basis: 100%;
+  order: 1;
+}
+
+/* The phantom absorbs spare width to keep final-row tiles compact. Its 25%
+   fallback fits only when that much space remains; otherwise it wraps.
+   $gallery.js adjusts it to match the preceding row's height. */
+figure.gallery::after {
+  content: "";
+  flex-basis: var(--phantom-basis, 25%);
+  /* Must dwarf the 1000-scaled tile growth. */
+  flex-grow: var(--phantom-grow, 10000000);
+}
+
+.lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100dvw;
+  height: 100dvh;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background-color: black;
+}
+
+.lightbox-scroller {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  overflow-x: scroll;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.lightbox-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lightbox-scroller { scroll-behavior: smooth; }
+}
+
+.lightbox-slide {
+  display: flex;
+  flex: 0 0 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.lightbox-slide > img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.lightbox-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 2.5rem 1.25rem 1rem;
+  color: #fff;
+  text-align: center;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+  pointer-events: none; /* Let the scroller handle clicks through captions. */
+}
+
+.lightbox > :is(button, a) {
+  position: fixed;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 1.9rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 300ms ease;
+  z-index: 10;
+}
+
+/* The display above would otherwise show a hidden control. */
+.lightbox > [hidden] {
+  display: none;
+}
+
+.lightbox > :is(button, a):hover:not(:disabled) {
+  opacity: 1;
+}
+
+.lightbox > button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.lightbox-close {
+  right: 0.75rem;
+  top: 0.5rem;
+}
+
+.lightbox-download {
+  right: 3.75rem;
+  top: 0.5rem;
+}
+
+.lightbox-prev {
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lightbox-next {
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+@media (hover: none) {
+  .lightbox > .lightbox-prev, .lightbox > .lightbox-next { display: none; }
+}
+
+.download-all {
+  margin: 2.5em 0;
+  text-align: center;
+}
+.download-all > button {
+  font: inherit;
+  padding: 0.5em 1.25em;
+  cursor: pointer;
+}
+.download-all > button:disabled {
+  cursor: progress;
+}

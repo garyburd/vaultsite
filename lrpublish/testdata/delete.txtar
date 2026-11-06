@@ -1,0 +1,49 @@
+Removing photos deletes their figures, with their captions: both of
+photo 1's, and photo 2's. A remote ID without a figure is confirmed too.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "delete",
+	"collection": 10,
+	"remoteIds": [
+		"a1000000000000000000000000000001.jpg",
+		"b2000000000000000000000000000002.jpg",
+		"e5000000000000000000000000000005.jpg"
+	]
+}
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Captioned
+
+[![Sunset](Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg)](vaultsite-fullsize:cat/b2/b2000000000000000000000000000002)
+
+[![](Galleries/Attachments/thumbs/c3/c3000000000000000000000000000003.jpg)](vaultsite-fullsize:cat/c3/c3000000000000000000000000000003)
+
+[![removed](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+-- want/response.json --
+{
+	"protocol": 5,
+	"confirmed": [
+		"a1000000000000000000000000000001.jpg",
+		"b2000000000000000000000000000002.jpg",
+		"e5000000000000000000000000000005.jpg"
+	]
+}
+-- want/log --
+Galleries/Recent.md: deleted 3 figures of 3 removed photos
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/c3/c3000000000000000000000000000003.jpg)](vaultsite-fullsize:cat/c3/c3000000000000000000000000000003)

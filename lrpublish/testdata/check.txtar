@@ -1,0 +1,11 @@
+The configuration is fine.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "check"
+}
+-- want/response.json --
+{
+	"protocol": 5
+}
+-- want/log --

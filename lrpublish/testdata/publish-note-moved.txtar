@@ -1,0 +1,86 @@
+Every publish updates the lightroom-path lines that differ, in every
+note of the service.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Now",
+				"Recent"
+			]
+		},
+		{
+			"id": 11,
+			"path": [
+				"Other"
+			]
+		}
+	],
+	"collection": 10,
+	"photos": [
+		{
+			"uuid": "A1000000-0000-0000-0000-000000000001",
+			"rendition": "$RENDER/1.jpg"
+		}
+	]
+}
+-- render/1.jpg --
+full 1 new
+-- vault/Galleries/Other.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 11
+lightroom-path: Old name
+---
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1
+-- vault/Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg --
+thumb 1
+-- want/response.json --
+{
+	"protocol": 5,
+	"photos": [
+		{
+			"uuid": "A1000000-0000-0000-0000-000000000001",
+			"remoteId": "a1000000000000000000000000000001.jpg"
+		}
+	]
+}
+-- want/log --
+Recent: stored 1 of 1 photos
+updated the collection path of 2 notes
+-- want/vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1 new
+-- want/vault/Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg --
+thumb of full 1 new
+-- want/vault/Galleries/Other.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 11
+lightroom-path: Other
+---
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Now/Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset

@@ -1,0 +1,23 @@
+A publish without the service's collections is refused, rather than
+marking every note deleted.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish"
+}
+-- vault/Galleries/Recent.md --
+---
+lightroom-collection: 10
+lightroom-path: Recent
+---
+-- want/response.json --
+{
+	"protocol": 5,
+	"error": "the request has no service"
+}
+-- want/log --
+-- want/vault/Galleries/Recent.md --
+---
+lightroom-collection: 10
+lightroom-path: Recent
+---

@@ -1,0 +1,90 @@
+A publish without a collection or photos, as the plugin sends for a
+deleted collection, marks deleted the notes of the collections the
+service no longer has, both of them when two claim one (A and B):
+lightroom-deleted replaces lightroom-collection and lightroom-path, and
+each note becomes a draft. Other.md, of a collection that remains, is
+untouched.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 13,
+			"path": [
+				"Other"
+			]
+		}
+	]
+}
+-- vault/Galleries/A.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 11
+lightroom-path: Trips/New Zealand
+---
+
+Text.
+-- vault/Galleries/B.md --
+---
+vaultsite-draft: false
+lightroom-collection: 11
+lightroom-path: "2024: Spring"
+tags:
+  - trip
+---
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- vault/Galleries/Other.md --
+---
+lightroom-collection: 13
+lightroom-path: Other
+---
+-- want/response.json --
+{
+	"protocol": 5
+}
+-- want/log --
+marked Galleries/A.md deleted
+marked Galleries/B.md deleted
+marked Galleries/Recent.md deleted
+-- want/vault/Galleries/A.md --
+---
+cssclasses:
+  - image-grid
+lightroom-deleted: Trips/New Zealand
+vaultsite-draft: true
+---
+
+Text.
+-- want/vault/Galleries/B.md --
+---
+vaultsite-draft: true
+lightroom-deleted: "2024: Spring"
+tags:
+  - trip
+---
+-- want/vault/Galleries/Other.md --
+---
+lightroom-collection: 13
+lightroom-path: Other
+---
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-deleted: Recent
+vaultsite-draft: true
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset

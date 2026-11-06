@@ -1,0 +1,59 @@
+The service never creates a missing notes folder, which may have been
+moved, so the publish stops before writing anything.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Recent"
+			]
+		}
+	],
+	"collection": 10,
+	"photos": [
+		{
+			"uuid": "C3000000-0000-0000-0000-000000000003",
+			"rendition": "$RENDER/3.jpg"
+		}
+	]
+}
+-- render/3.jpg --
+full 3
+-- vault/.vaultsite/site.yaml --
+base_url: https://example.com
+lr_publish:
+  cat:
+    notes: Moved
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1
+-- want/response.json --
+{
+	"protocol": 5,
+	"error": "The notes folder Moved is missing.\n\nCreate it, or if you moved it, change lr_publish.cat.notes in $VAULT/.vaultsite/site.yaml to its new place."
+}
+-- want/log --
+-- want/vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset

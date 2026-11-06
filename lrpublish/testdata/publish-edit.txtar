@@ -1,0 +1,87 @@
+Republishing edited photos writes their images: photo 1's thumbnail goes
+where its figure shows it. Photo 2's figure was deleted, so its thumbnail
+goes to the default path, and it gets a figure again, without a caption,
+as when it was new.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Recent"
+			]
+		}
+	],
+	"collection": 10,
+	"photos": [
+		{
+			"uuid": "A1000000-0000-0000-0000-000000000001",
+			"rendition": "$RENDER/1.jpg"
+		},
+		{
+			"uuid": "B2000000-0000-0000-0000-000000000002",
+			"rendition": "$RENDER/2.jpg"
+		}
+	]
+}
+-- render/1.jpg --
+full 1
+-- render/2.jpg --
+full 2 new
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Trip/a1.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Moved
+-- vault/Galleries/Trip/a1.jpg --
+thumb 1
+-- vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1
+-- vault/.vaultsite/fullsize/cat/b2/b2000000000000000000000000000002.jpg --
+full 2
+-- vault/Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg --
+thumb 2
+-- want/response.json --
+{
+	"protocol": 5,
+	"photos": [
+		{
+			"uuid": "A1000000-0000-0000-0000-000000000001",
+			"remoteId": "a1000000000000000000000000000001.jpg"
+		},
+		{
+			"uuid": "B2000000-0000-0000-0000-000000000002",
+			"remoteId": "b2000000000000000000000000000002.jpg"
+		}
+	]
+}
+-- want/log --
+Recent: stored 2 of 2 photos
+Galleries/Recent.md: added 1 figure
+-- want/vault/.vaultsite/fullsize/cat/a1/a1000000000000000000000000000001.jpg --
+full 1
+-- want/vault/.vaultsite/fullsize/cat/b2/b2000000000000000000000000000002.jpg --
+full 2 new
+-- want/vault/Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg --
+thumb of full 2 new
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Trip/a1.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Moved
+
+[![](Galleries/Attachments/thumbs/b2/b2000000000000000000000000000002.jpg)](vaultsite-fullsize:cat/b2/b2000000000000000000000000000002)
+-- want/vault/Galleries/Trip/a1.jpg --
+thumb of full 1

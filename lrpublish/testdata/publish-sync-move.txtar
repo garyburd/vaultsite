@@ -1,0 +1,64 @@
+A publish without a collection or photos, as the plugin sends for a
+renamed or moved collection, updates the notes' lightroom-path lines to
+match the service's collections.
+-- request.json --
+{
+	"protocol": 5,
+	"op": "publish",
+	"service": [
+		{
+			"id": 10,
+			"path": [
+				"Trips",
+				"Recent: 2026"
+			]
+		},
+		{
+			"id": 11,
+			"path": [
+				"Trips",
+				"Other"
+			]
+		}
+	]
+}
+-- vault/Galleries/Other.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 11
+lightroom-path: Trips/Other
+---
+-- vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: Recent
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
+-- want/response.json --
+{
+	"protocol": 5
+}
+-- want/log --
+updated the collection path of 1 note
+-- want/vault/Galleries/Other.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 11
+lightroom-path: Trips/Other
+---
+-- want/vault/Galleries/Recent.md --
+---
+cssclasses:
+  - image-grid
+lightroom-collection: 10
+lightroom-path: "Trips/Recent: 2026"
+---
+
+[![](Galleries/Attachments/thumbs/a1/a1000000000000000000000000000001.jpg)](vaultsite-fullsize:cat/a1/a1000000000000000000000000000001)
+Sunset
